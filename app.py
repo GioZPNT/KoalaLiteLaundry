@@ -138,7 +138,7 @@ elif menu == "Manage Orders":
                 "Notes": st.column_config.TextColumn("Notes", width="large")
             },
             disabled=["Order_ID", "Date", "Customer", "Amount", "Tier", "Loads", "Add_on_Fixed", "Open_Amount", "Garment_Type", "Contact"],
-            use_container_width=True,
+            width='stretch',
             hide_index=True
         )
         
