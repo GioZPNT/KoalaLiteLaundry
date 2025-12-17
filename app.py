@@ -28,7 +28,15 @@ def init_db():
 init_db()
 
 def load_data():
-    return pd.read_csv(FILES["sales"])
+    # FIX: Force 'Notes' and 'Contact' to be strings so they aren't read as FLOAT/INT
+    df = pd.read_csv(FILES["sales"], dtype={
+        "Notes": str, 
+        "Contact": str, 
+        "Order_ID": str
+    })
+    # Replace NaN (empty cells) with empty strings to prevent errors in the editor
+    df["Notes"] = df["Notes"].fillna("")
+    return df
 
 def save_data(df):
     df.to_csv(FILES["sales"], index=False)
