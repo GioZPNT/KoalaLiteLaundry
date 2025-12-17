@@ -5,10 +5,10 @@ from datetime import datetime
 
 # --- SECURITY CONFIG ---
 # Change this to your desired password
-LOGIN_PASSWORD = "LabadaOwner2025" 
+LOGIN_PASSWORD = "KoalaLaundry2025" 
 
 # --- CONFIGURATION ---
-st.set_page_config(page_title="LabadaBoss Pro", layout="wide")
+st.set_page_config(page_title="Koala Lite", layout="wide")
 
 FILES = {"sales": "sales.csv"}
 TIERS = {"Tier 1 (₱125)": 125, "Tier 2 (₱150)": 150}
@@ -69,7 +69,7 @@ if check_password():
         df.to_csv(FILES["sales"], index=False)
 
     # --- NAVIGATION ---
-    st.sidebar.title("🧺 LabadaBoss")
+    st.sidebar.title("🧺 Koala Laundry")
     menu = st.sidebar.radio("Navigation", ["Dashboard", "New Sale", "Manage Orders"])
 
     # 1. DASHBOARD
