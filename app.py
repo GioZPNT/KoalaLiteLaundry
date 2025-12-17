@@ -107,7 +107,7 @@ if check_password():
             with col2:
                 loads = st.number_input("Number of Loads", min_value=1, step=1)
                 selected_addon = st.selectbox("Select Add-on Rate (₱)", ADDON_OPTIONS)
-                open_amt = st.number_input("Open Amount (₱)", min_value=0.0, step=1.0)
+                open_amt = st.number_input("Other Amount (₱)", min_value=0.0, step=1.0)
                 pay_type = st.radio("Payment Method", ["Cash", "GCash"], horizontal=True)
                 pay_status = st.radio("Payment Status", ["Unpaid", "Paid"], horizontal=True)
                 
