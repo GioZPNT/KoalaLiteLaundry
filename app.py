@@ -26,13 +26,13 @@ def check_password():
 
     if "password_correct" not in st.session_state:
         # First run, show input for password
-        st.title("🧺 LabadaBoss Management System")
+        st.title("🧺 Koala Management System")
         st.text_input("Enter Password to Access Operations", type="password", on_change=password_entered, key="password")
         st.info("Authorized Personnel Only")
         return False
     elif not st.session_state["password_correct"]:
         # Password incorrect, show input + error
-        st.title("🧺 LabadaBoss Management System")
+        st.title("🧺 Koala Management System")
         st.text_input("Enter Password to Access Operations", type="password", on_change=password_entered, key="password")
         st.error("😕 Password incorrect")
         return False
