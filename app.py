@@ -79,8 +79,14 @@ if check_password():
     elif menu == "New Sale":
         st.title("💰 Create New Job Order")
 
+        # --- 0. PERSISTENT SUCCESS MESSAGE LOGIC ---
+        # Check if a message exists from the previous run (before the reset)
+        if "last_success_msg" in st.session_state and st.session_state.last_success_msg:
+            st.success(st.session_state.last_success_msg)
+            # Clear it immediately so it doesn't stay on screen forever
+            del st.session_state.last_success_msg
+
         # --- 1. SESSION STATE FOR RESETTING ---
-        # We use a simple counter. Changing this number forces the form to "respawn" empty.
         if "form_key" not in st.session_state:
             st.session_state.form_key = 0
 
@@ -90,7 +96,6 @@ if check_password():
             st.rerun()
 
         # --- 2. THE FORM ---
-        # We use clear_on_submit=False because we want "Update" to keep the data.
         with st.form("order_form", clear_on_submit=False):
             st.subheader("👤 Customer & Service")
             
@@ -99,7 +104,6 @@ if check_password():
             
             col1, col2 = st.columns(2)
             with col1:
-                # We append _{k} to every key. When k changes, these become "new" widgets.
                 cust_name = st.text_input("Customer Name", key=f"cust_name_{k}")
                 contact = st.text_input("Contact Number", key=f"contact_{k}")
                 selected_tier = st.selectbox("Pricing Tier", list(TIERS.keys()), key=f"tier_{k}")
@@ -147,7 +151,6 @@ if check_password():
             # --- Actions ---
             col_actions1, col_actions2 = st.columns(2)
             with col_actions1:
-                # "Update" just submits the form. Since we don't change 'form_key', data stays.
                 update_click = st.form_submit_button("🔄 Update Total", type="secondary", use_container_width=True)
             with col_actions2:
                 confirm_click = st.form_submit_button("✅ Confirm Order", type="primary", use_container_width=True)
@@ -187,9 +190,11 @@ if check_password():
                     current_df = pd.read_csv(FILES["sales"])
                     save_data(pd.concat([current_df, new_entry], ignore_index=True))
                     
-                    st.success(f"Order for {cust_name} saved! Total: ₱{grand_total:,.2f}")
+                    # --- SUCCESS HANDLING ---
+                    # Store the message in session state so it survives the rerun
+                    st.session_state.last_success_msg = f"✅ Success! Order for {cust_name} saved. (Total: ₱{grand_total:,.2f})"
                     
-                    # --- THE FIX: Increment key to reset form on next load ---
+                    # Increment key to reset form, then rerun to show the empty form + success message
                     st.session_state.form_key += 1
                     st.rerun()
 
