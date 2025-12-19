@@ -42,7 +42,7 @@ if check_password():
         if not os.path.exists(FILES["sales"]):
             df = pd.DataFrame(columns=[
                 "Order_ID", "Date", "Customer", "Contact", "Tier", "Garment_Type", 
-                "Loads", "Add_on_Fixed", "Open_Amount", "Amount", "Payment_Type", 
+                "Loads", "Addionals", "Misc_Amount", "Amount", "Payment_Type", 
                 "Payment_Status", "Work_Status", "Notes"
             ])
             df.to_csv(FILES["sales"], index=False)
