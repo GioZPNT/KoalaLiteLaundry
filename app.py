@@ -42,7 +42,7 @@ if check_password():
         if not os.path.exists(FILES["sales"]):
             df = pd.DataFrame(columns=[
                 "Order_ID", "Date", "Customer", "Contact", "Tier", "Garment_Type", 
-                "Loads", "Addionals", "Misc_Amount", "Amount", "Payment_Type", 
+                "Loads", "Additionals", "Misc_Amount", "Amount", "Payment_Type", 
                 "Payment_Status", "Work_Status", "Notes"
             ])
             df.to_csv(FILES["sales"], index=False)
@@ -177,8 +177,8 @@ if check_password():
                         "Tier": selected_tier, 
                         "Garment_Type": garment, 
                         "Loads": loads,
-                        "Add_on_Fixed": supplies_total, 
-                        "Open_Amount": open_amt, 
+                        "Additionals": supplies_total, 
+                        "Misc_Amount": open_amt, 
                         "Amount": grand_total,
                         "Payment_Type": pay_type, 
                         "Payment_Status": pay_status,
