@@ -233,37 +233,67 @@ if check_password():
 
     # 3. MANAGE ORDERS
     elif menu == "Manage Orders":
-        st.title("📋 Job Management")
+        st.title("📋 Job Order Management")
         sales_df = load_data()
+        
         if not sales_df.empty:
-            order_id = st.text_input("Enter Order ID to Fetch")
-            if order_id:
-                job = sales_df[sales_df["Order_ID"] == order_id]
-                if not job.empty:
-                    tab1, tab2 = st.tabs(["Update", "Delete"])
-                    with tab1:
-                        with st.form("u_form"):
-                            # Logic for selectbox defaults
-                            w_opts = ["WIP", "Ready", "Claimed"]
-                            p_opts = ["Paid", "Unpaid"]
-                            t_opts = ["Cash", "GCash"]
+            # --- FETCH SECTION ---
+            st.subheader("🔍 Fetch & Actions")
+            order_to_fetch = st.text_input("Enter Order ID (e.g., 231219-1200)")
+            
+            if order_to_fetch:
+                fetched_job = sales_df[sales_df["Order_ID"] == order_to_fetch]
+                if not fetched_job.empty:
+                    st.info(f"Managing Order for: **{fetched_job.iloc[0]['Customer']}**")
+                    
+                    # Update & Delete Layout
+                    tab_update, tab_delete = st.tabs(["Update Status", "⚠️ Delete Order"])
+                    
+                    with tab_update:
+                        with st.form("update_form"):
+                            c1, c2, c3 = st.columns(3)
+                            # Safe index finding
+                            curr_work = fetched_job.iloc[0]["Work_Status"]
+                            curr_pay = fetched_job.iloc[0]["Payment_Status"]
+                            curr_type = fetched_job.iloc[0]["Payment_Type"]
                             
-                            nw = st.selectbox("Work", w_opts, index=w_opts.index(job.iloc[0]["Work_Status"]) if job.iloc[0]["Work_Status"] in w_opts else 0)
-                            np = st.selectbox("Payment", p_opts, index=p_opts.index(job.iloc[0]["Payment_Status"]) if job.iloc[0]["Payment_Status"] in p_opts else 0)
-                            nt = st.selectbox("Type", t_opts, index=t_opts.index(job.iloc[0]["Payment_Type"]) if job.iloc[0]["Payment_Type"] in t_opts else 0)
-                            nn = st.text_area("Notes", value=job.iloc[0]["Notes"])
-                            if st.form_submit_button("Update"):
-                                sales_df.loc[sales_df["Order_ID"] == order_id, ["Work_Status", "Payment_Status", "Payment_Type", "Notes"]] = [nw, np, nt, nn]
+                            u_work = c1.selectbox("Work Status", ["WIP", "Ready", "Claimed"], index=["WIP", "Ready", "Claimed"].index(curr_work) if curr_work in ["WIP", "Ready", "Claimed"] else 0)
+                            u_pay = c2.selectbox("Payment Status", ["Paid", "Unpaid"], index=["Paid", "Unpaid"].index(curr_pay) if curr_pay in ["Paid", "Unpaid"] else 0)
+                            u_type = c3.selectbox("Payment Type", ["Cash", "GCash"], index=["Cash", "GCash"].index(curr_type) if curr_type in ["Cash", "GCash"] else 0)
+                            
+                            u_notes = st.text_area("Update Notes", value=fetched_job.iloc[0]["Notes"])
+                            
+                            if st.form_submit_button("Save Changes"):
+                                sales_df.loc[sales_df["Order_ID"] == order_to_fetch, ["Work_Status", "Payment_Status", "Payment_Type", "Notes"]] = [u_work, u_pay, u_type, str(u_notes)]
                                 save_data(sales_df)
-                                st.rerun()
-                    with tab2:
-                        if st.checkbox("Confirm Delete"):
-                            if st.button("Delete Permanently"):
-                                save_data(sales_df[sales_df["Order_ID"] != order_id])
+                                st.success("Updated!")
                                 st.rerun()
 
+                    with tab_delete:
+                        st.warning("Deletions cannot be undone. This will remove the record from your sales history.")
+                        confirm_check = st.checkbox("I confirm that I want to delete this order.")
+                        if st.button("Delete Permanently", disabled=not confirm_check):
+                            updated_df = sales_df[sales_df["Order_ID"] != order_to_fetch]
+                            save_data(updated_df)
+                            st.error(f"Order {order_to_fetch} deleted.")
+                            st.rerun()
+                else:
+                    st.error("Order ID not found.")
+
             st.divider()
-            edited_bulk = st.data_editor(sales_df, use_container_width=True, hide_index=True, disabled=["Order_ID", "Date", "Customer", "Amount"])
-            if st.button("Save Bulk Changes"):
-                save_data(edited_bulk)
-                st.success("Saved!")
+            st.subheader("📝 Bulk Status Editor")
+            edited_df = st.data_editor(
+                sales_df,
+                column_config={
+                    "Work_Status": st.column_config.SelectboxColumn("Work Status", options=["WIP", "Ready", "Claimed"]),
+                    "Payment_Status": st.column_config.SelectboxColumn("Payment Status", options=["Paid", "Unpaid"]),
+                    "Payment_Type": st.column_config.SelectboxColumn("Payment Type", options=["Cash", "GCash"]),
+                    "Notes": st.column_config.TextColumn("Notes", width="large")
+                },
+                disabled=["Order_ID", "Date", "Customer", "Amount", "Tier", "Loads", "Add_on_Fixed", "Open_Amount", "Garment_Type", "Contact"],
+                use_container_width=True, hide_index=True
+            )
+            if st.button("Save All Bulk Changes"):
+                save_data(edited_df)
+                st.success("Bulk updates saved!")
+                st.rerun()
