@@ -63,17 +63,50 @@ if check_password():
 
     # 1. DASHBOARD
     if menu == "Dashboard":
-        st.title("📊 Business Performance")
-        sales_df = load_data()
-        if not sales_df.empty:
-            today_val = date.today()
-            today_sales = sales_df[sales_df["Date"] == today_val]["Amount"].sum()
-            unpaid_total = sales_df[sales_df["Payment_Status"] == "Unpaid"]["Amount"].sum()
+        # --- ADMIN SECURITY CHECK ---
+        DASHBOARD_PASSWORD = "Bebot88"  # <--- Change this to your preferred admin password
+
+        # Initialize the specific state for dashboard access
+        if "dashboard_unlocked" not in st.session_state:
+            st.session_state.dashboard_unlocked = False
+
+        # If locked, show the password input
+        if not st.session_state.dashboard_unlocked:
+            st.title("🔒 Admin Access Required")
+            st.info("This section contains sensitive financial data.")
             
-            c1, c2, c3 = st.columns(3)
-            c1.metric("Sales Today", f"₱{today_sales:,.2f}")
-            c2.metric("Unpaid Receivables", f"₱{unpaid_total:,.2f}")
-            c3.metric("WIP Jobs", len(sales_df[sales_df["Work_Status"] == "WIP"]))
+            admin_input = st.text_input("Enter Owner Password", type="password", key="dash_pass_input")
+            
+            if st.button("Unlock Dashboard"):
+                if admin_input == DASHBOARD_PASSWORD:
+                    st.session_state.dashboard_unlocked = True
+                    st.rerun()
+                else:
+                    st.error("❌ Incorrect Password")
+        
+        # If unlocked, show the actual dashboard
+        else:
+            # Optional: Button to re-lock the screen
+            if st.button("🔒 Lock Dashboard"):
+                st.session_state.dashboard_unlocked = False
+                st.rerun()
+
+            st.title("📊 Business Performance")
+            sales_df = load_data()
+            
+            if not sales_df.empty:
+                today_val = date.today()
+                today_sales = sales_df[sales_df["Date"] == today_val]["Amount"].sum()
+                unpaid_total = sales_df[sales_df["Payment_Status"] == "Unpaid"]["Amount"].sum()
+                
+                c1, c2, c3 = st.columns(3)
+                c1.metric("Sales Today", f"₱{today_sales:,.2f}")
+                c2.metric("Unpaid Receivables", f"₱{unpaid_total:,.2f}")
+                c3.metric("WIP Jobs", len(sales_df[sales_df["Work_Status"] == "WIP"]))
+                
+                # (You can add your Date Range breakdown code here if needed)
+            else:
+                st.info("No records found yet.")
 
     # 2. NEW SALE (FIXED)
     elif menu == "New Sale":
