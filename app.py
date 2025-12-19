@@ -78,71 +78,120 @@ if check_password():
     # 2. NEW SALE (FIXED)
     elif menu == "New Sale":
         st.title("💰 Create New Job Order")
-        
-        # Reset Logic
-        if "extra_items_list" not in st.session_state:
-            st.session_state.extra_items_list = pd.DataFrame(columns=["Item Description", "Price (₱)"])
 
-        if st.button("🔄 Clear/Reset Form"):
-            st.session_state.extra_items_list = pd.DataFrame(columns=["Item Description", "Price (₱)"])
+        # --- 1. SESSION STATE FOR RESETTING ---
+        # We use a simple counter. Changing this number forces the form to "respawn" empty.
+        if "form_key" not in st.session_state:
+            st.session_state.form_key = 0
+
+        # Reset Button (Manual Clear)
+        if st.button("🔄 Reset Form"):
+            st.session_state.form_key += 1
             st.rerun()
 
-        with st.form("order_form", clear_on_submit=True):
+        # --- 2. THE FORM ---
+        # We use clear_on_submit=False because we want "Update" to keep the data.
+        with st.form("order_form", clear_on_submit=False):
+            st.subheader("👤 Customer & Service")
+            
+            # Helper for the current key
+            k = st.session_state.form_key
+            
             col1, col2 = st.columns(2)
             with col1:
-                cust_name = st.text_input("Customer Name")
-                contact = st.text_input("Contact Number")
-                selected_tier = st.selectbox("Pricing Tier", list(TIERS.keys()))
-                garment = st.selectbox("Garment Type", ["Regular", "Semi-Heavy", "Heavy"])
+                # We append _{k} to every key. When k changes, these become "new" widgets.
+                cust_name = st.text_input("Customer Name", key=f"cust_name_{k}")
+                contact = st.text_input("Contact Number", key=f"contact_{k}")
+                selected_tier = st.selectbox("Pricing Tier", list(TIERS.keys()), key=f"tier_{k}")
+                garment = st.selectbox("Garment Type", ["Regular", "Semi-Heavy", "Heavy"], key=f"garment_{k}")
             with col2:
-                loads = st.number_input("Loads", min_value=1, step=1)
-                open_amt = st.number_input("Misc Amount (₱)", min_value=0.0)
-                pay_type = st.radio("Payment", ["Cash", "GCash"], horizontal=True)
-                pay_status = st.radio("Status", ["Unpaid", "Paid"], horizontal=True)
+                loads = st.number_input("Loads", min_value=1, step=1, key=f"loads_{k}")
+                open_amt = st.number_input("Misc / Open Amount (₱)", min_value=0.0, key=f"open_{k}")
+                pay_type = st.radio("Payment", ["Cash", "GCash"], horizontal=True, key=f"ptype_{k}")
+                pay_status = st.radio("Status", ["Unpaid", "Paid"], horizontal=True, key=f"pstat_{k}")
 
             st.divider()
-            st.subheader("🧺 Extra Items")
+            st.subheader("🧴 Add-ons (Supplies)")
             
-            # 1. The Editor
-            edited_items = st.data_editor(
-                st.session_state.extra_items_list, 
-                num_rows="dynamic", 
-                use_container_width=True, 
-                key="items_ed"
-            )
-
-            # 2. Calculate Extra Items Subtotal immediately
-            if not edited_items.empty:
-                extras_sum = pd.to_numeric(edited_items["Price (₱)"], errors='coerce').fillna(0).sum()
-            else:
-                extras_sum = 0.0
+            c1, c2 = st.columns(2)
+            with c1:
+                st.markdown("##### Detergent")
+                det_brand = st.text_input("Brand", placeholder="e.g. Ariel", key=f"d_brand_{k}")
+                det_price = st.number_input("Amount (₱)", min_value=0.0, step=5.0, key=f"d_price_{k}")
             
-            # 3. Display the Subtotal for Extra Items
-            st.info(f"**Extra Items Subtotal: ₱{extras_sum:,.2f}**")
+            with c2:
+                st.markdown("##### Fabric Conditioner")
+                fab_brand = st.text_input("Brand", placeholder="e.g. Downy", key=f"f_brand_{k}")
+                fab_price = st.number_input("Amount (₱)", min_value=0.0, step=5.0, key=f"f_price_{k}")
 
             st.divider()
-            notes = st.text_area("Notes")
-            work_status = st.select_slider("Work Status", options=["WIP", "Ready", "Claimed"])
+            notes = st.text_area("Notes / Remarks", key=f"notes_{k}")
+            work_status = st.select_slider("Work Status", options=["WIP", "Ready", "Claimed"], key=f"ws_{k}")
 
-            # --- Grand Total Calculation ---
+            # --- Calculation Logic ---
             base_price = float(TIERS[selected_tier] * loads)
-            total_amt = base_price + float(extras_sum) + float(open_amt)
-            
-            st.markdown(f"### **Grand Total: ₱{total_amt:,.2f}**")
-            st.caption(f"(Base: ₱{base_price:,.2f} + Extras: ₱{extras_sum:,.2f} + Misc: ₱{open_amt:,.2f})")
+            supplies_total = float(det_price) + float(fab_price)
+            grand_total = base_price + supplies_total + float(open_amt)
 
-            if st.form_submit_button("Confirm Order"):
-                items_str = ", ".join([f"{r['Item Description']}(₱{r['Price (₱)']})" for _, r in edited_items.iterrows() if r['Item Description']])
-                new_entry = pd.DataFrame([{
-                    "Order_ID": datetime.now().strftime("%y%m%d-%H%M%S"),
-                    "Date": date.today(), "Customer": cust_name, "Contact": str(contact),
-                    "Tier": selected_tier, "Garment_Type": garment, "Loads": loads,
-                    "Add_on_Fixed": extras_sum, "Open_Amount": open_amt, "Amount": total_amt,
-                    "Payment_Type": pay_type, "Payment_Status": pay_status,
-                    "Work_Status": work_status, "Notes": f"Items: {items_str} | {notes}"
-                }])
-                save_data(pd.concat([pd.read_csv(FILES["sales"]), new_entry], ignore_index=True))
-                st.success("Order Saved!")
+            # --- Display Totals ---
+            st.markdown(f"""
+            <div style="background-color:#f0f2f6; padding:15px; border-radius:10px; margin-bottom:10px;">
+                <h4>🧾 Payment Summary</h4>
+                <p>Base Laundry: ₱{base_price:,.2f}<br>
+                Supplies: ₱{supplies_total:,.2f}<br>
+                Misc: ₱{open_amt:,.2f}</p>
+                <h3 style="color:#007bff;">Total Amount: ₱{grand_total:,.2f}</h3>
+            </div>
+            """, unsafe_allow_html=True)
+
+            # --- Actions ---
+            col_actions1, col_actions2 = st.columns(2)
+            with col_actions1:
+                # "Update" just submits the form. Since we don't change 'form_key', data stays.
+                update_click = st.form_submit_button("🔄 Update Total", type="secondary", use_container_width=True)
+            with col_actions2:
+                confirm_click = st.form_submit_button("✅ Confirm Order", type="primary", use_container_width=True)
+
+            # --- Save Logic ---
+            if confirm_click:
+                if not cust_name:
+                    st.error("⚠️ Customer Name is required.")
+                else:
+                    # Format supplies string
+                    supplies_str = []
+                    if det_price > 0 or det_brand:
+                        supplies_str.append(f"Det: {det_brand} (₱{det_price})")
+                    if fab_price > 0 or fab_brand:
+                        supplies_str.append(f"Fab: {fab_brand} (₱{fab_price})")
+                    
+                    supplies_final = ", ".join(supplies_str) if supplies_str else "None"
+
+                    new_entry = pd.DataFrame([{
+                        "Order_ID": datetime.now().strftime("%y%m%d-%H%M%S"),
+                        "Date": date.today(), 
+                        "Customer": cust_name, 
+                        "Contact": str(contact),
+                        "Tier": selected_tier, 
+                        "Garment_Type": garment, 
+                        "Loads": loads,
+                        "Add_on_Fixed": supplies_total, 
+                        "Open_Amount": open_amt, 
+                        "Amount": grand_total,
+                        "Payment_Type": pay_type, 
+                        "Payment_Status": pay_status,
+                        "Work_Status": work_status, 
+                        "Notes": f"{supplies_final} | {notes}"
+                    }])
+                    
+                    # Append and Save
+                    current_df = pd.read_csv(FILES["sales"])
+                    save_data(pd.concat([current_df, new_entry], ignore_index=True))
+                    
+                    st.success(f"Order for {cust_name} saved! Total: ₱{grand_total:,.2f}")
+                    
+                    # --- THE FIX: Increment key to reset form on next load ---
+                    st.session_state.form_key += 1
+                    st.rerun()
 
     # 3. MANAGE ORDERS
     elif menu == "Manage Orders":
