@@ -100,21 +100,36 @@ if check_password():
                 pay_type = st.radio("Payment", ["Cash", "GCash"], horizontal=True)
                 pay_status = st.radio("Status", ["Unpaid", "Paid"], horizontal=True)
 
+            st.divider()
             st.subheader("🧺 Extra Items")
-            edited_items = st.data_editor(st.session_state.extra_items_list, num_rows="dynamic", use_container_width=True, key="items_ed")
+            
+            # 1. The Editor
+            edited_items = st.data_editor(
+                st.session_state.extra_items_list, 
+                num_rows="dynamic", 
+                use_container_width=True, 
+                key="items_ed"
+            )
 
-            notes = st.text_area("Notes")
-            work_status = st.select_slider("Work Status", options=["WIP", "Ready", "Claimed"])
-
-            # --- THE FIX: Safe Numeric Summing ---
-            base_price = float(TIERS[selected_tier] * loads)
+            # 2. Calculate Extra Items Subtotal immediately
             if not edited_items.empty:
                 extras_sum = pd.to_numeric(edited_items["Price (₱)"], errors='coerce').fillna(0).sum()
             else:
                 extras_sum = 0.0
             
+            # 3. Display the Subtotal for Extra Items
+            st.info(f"**Extra Items Subtotal: ₱{extras_sum:,.2f}**")
+
+            st.divider()
+            notes = st.text_area("Notes")
+            work_status = st.select_slider("Work Status", options=["WIP", "Ready", "Claimed"])
+
+            # --- Grand Total Calculation ---
+            base_price = float(TIERS[selected_tier] * loads)
             total_amt = base_price + float(extras_sum) + float(open_amt)
-            st.markdown(f"### **Total: ₱{total_amt:,.2f}**")
+            
+            st.markdown(f"### **Grand Total: ₱{total_amt:,.2f}**")
+            st.caption(f"(Base: ₱{base_price:,.2f} + Extras: ₱{extras_sum:,.2f} + Misc: ₱{open_amt:,.2f})")
 
             if st.form_submit_button("Confirm Order"):
                 items_str = ", ".join([f"{r['Item Description']}(₱{r['Price (₱)']})" for _, r in edited_items.iterrows() if r['Item Description']])
