@@ -331,8 +331,16 @@ elif app_mode == "🔐 Admin & Payroll":
         # --- ADMIN: EMPLOYEES ---
         with tab_emp:
             st.subheader("Employee Registry")
+            
+            # --- SUCCESS MESSAGE LOGIC ---
+            # Check if a success message exists from the previous run
+            if "emp_success" in st.session_state and st.session_state.emp_success:
+                st.success(st.session_state.emp_success)
+                del st.session_state.emp_success  # Clear message so it doesn't stay forever
+
             with st.expander("➕ Add New Employee"):
-                with st.form("add_emp"):
+                # Added clear_on_submit=True so fields reset after adding
+                with st.form("add_emp", clear_on_submit=True):
                     c1, c2 = st.columns(2)
                     name = c1.text_input("Full Name")
                     pos = c2.text_input("Position")
@@ -348,17 +356,22 @@ elif app_mode == "🔐 Admin & Payroll":
                     hol_rate = r4.number_input("Hol Rate", value=2.0)
 
                     if st.form_submit_button("Save Employee"):
-                        emp_df = load_csv("employees")
-                        new_id = f"EMP-{len(emp_df) + 1:03d}"
-                        new_data = pd.DataFrame([{
-                            "Employee_ID": new_id, "Name": name, "Position": pos,
-                            "Start_Date": start_date, "Status": status,
-                            "Daily_Rate": daily, "Hourly_Rate": hourly,
-                            "OT_Rate": ot_rate, "Holiday_Rate": hol_rate
-                        }])
-                        save_csv("employees", pd.concat([emp_df, new_data], ignore_index=True))
-                        st.success(f"Added {name}!")
-                        st.rerun()
+                        if not name:
+                            st.error("⚠️ Name is required.")
+                        else:
+                            emp_df = load_csv("employees")
+                            new_id = f"EMP-{len(emp_df) + 1:03d}"
+                            new_data = pd.DataFrame([{
+                                "Employee_ID": new_id, "Name": name, "Position": pos,
+                                "Start_Date": start_date, "Status": status,
+                                "Daily_Rate": daily, "Hourly_Rate": hourly,
+                                "OT_Rate": ot_rate, "Holiday_Rate": hol_rate
+                            }])
+                            save_csv("employees", pd.concat([emp_df, new_data], ignore_index=True))
+                            
+                            # Store success message in session state so it survives the rerun
+                            st.session_state.emp_success = f"✅ Successfully added employee: {name}!"
+                            st.rerun()
 
             emp_df = load_csv("employees")
             if not emp_df.empty:
