@@ -9,13 +9,7 @@ ACCESS_PASSWORD = "Koala2025"
 # --- CONFIGURATION ---
 st.set_page_config(page_title="Koala Insite", layout="wide")
 
-# 1. UPDATE: Add new files to the configuration
-FILES = {
-    "sales": "sales.csv",
-    "employees": "payroll_employees.csv", # New
-    "dtr": "payroll_dtr.csv"             # New
-}
-
+FILES = {"sales": "sales.csv"}
 TIERS = {"Tier 1 (₱125)": 125, "Tier 2 (₱150)": 150}
 
 # --- LOGIN LOGIC ---
@@ -39,13 +33,12 @@ def check_password():
     return True
 
 if check_password():
+    # --- LOGOUT & DB INIT ---
     if st.sidebar.button("Log Out"):
         st.session_state["password_correct"] = False
         st.rerun()
 
-    # 2. UPDATE: Update database initialization to create new files
     def init_db():
-        # Sales DB
         if not os.path.exists(FILES["sales"]):
             df = pd.DataFrame(columns=[
                 "Order_ID", "Date", "Customer", "Contact", "Tier", "Garment_Type", 
@@ -53,153 +46,254 @@ if check_password():
                 "Payment_Status", "Work_Status", "Notes"
             ])
             df.to_csv(FILES["sales"], index=False)
-        
-        # Employee DB (Required for DTR)
-        if not os.path.exists(FILES["employees"]):
-            # Minimal columns needed for DTR to work
-            df = pd.DataFrame(columns=["Employee_ID", "Name", "Position", "Status"])
-            df.to_csv(FILES["employees"], index=False)
-
-        # DTR DB
-        if not os.path.exists(FILES["dtr"]):
-            df = pd.DataFrame(columns=[
-                "Date", "Employee_ID", "Name", "Time_In", "Time_Out", 
-                "Reg_Hours", "OT_Hours", "Is_Holiday", "Notes"
-            ])
-            df.to_csv(FILES["dtr"], index=False)
-
     init_db()
 
-    # --- HELPER FUNCTIONS ---
-    def load_data(): # Keeps existing logic for Sales
+    def load_data():
         df = pd.read_csv(FILES["sales"], dtype={"Notes": str, "Contact": str, "Order_ID": str, "Work_Status": str, "Payment_Status": str})
         df["Notes"] = df["Notes"].fillna("")
         df["Date"] = pd.to_datetime(df["Date"]).dt.date
         return df
 
-    def save_data(df): # Keeps existing logic for Sales
+    def save_data(df):
         df.to_csv(FILES["sales"], index=False)
-
-    # 3. UPDATE: Add generic CSV helpers for the new module
-    def load_csv(key):
-        return pd.read_csv(FILES[key])
-
-    def save_csv(key, df):
-        df.to_csv(FILES[key], index=False)
 
     # --- NAVIGATION ---
     st.sidebar.title("🧺 Koala Insite")
-    # 4. UPDATE: Add "Staff Timekeeping" to the menu
-    menu = st.sidebar.selectbox("Go to Page:", ["Dashboard", "New Sale", "Manage Orders", "Staff Timekeeping"])
+    menu = st.sidebar.selectbox("Go to Page:", ["Dashboard", "New Sale", "Manage Orders"])
 
-    # --- MODULES ---
-
-    # 1. DASHBOARD (Existing)
+    # 1. DASHBOARD
     if menu == "Dashboard":
-        # ... (Keep your existing Dashboard code here) ...
-        # (For brevity, I'm assuming the existing dashboard code remains unchanged)
-        st.title("📊 Business Performance")
-        sales_df = load_data()
-        if not sales_df.empty:
-            today_val = date.today()
-            today_sales = sales_df[sales_df["Date"] == today_val]["Amount"].sum()
-            unpaid_total = sales_df[sales_df["Payment_Status"] == "Unpaid"]["Amount"].sum()
-            c1, c2, c3 = st.columns(3)
-            c1.metric("Sales Today", f"₱{today_sales:,.2f}")
-            c2.metric("Unpaid Receivables", f"₱{unpaid_total:,.2f}")
-            c3.metric("WIP Jobs", len(sales_df[sales_df["Work_Status"] == "WIP"]))
-        else:
-            st.info("No records found yet.")
+        # --- ADMIN SECURITY CHECK ---
+        DASHBOARD_PASSWORD = "Bebot88"  # <--- Change this to your preferred admin password
 
-    # 2. NEW SALE (Existing)
-    elif menu == "New Sale":
-        # ... (Keep your existing New Sale code here) ...
-        st.title("💰 Create New Job Order")
-        # (Paste your existing New Sale logic here)
+        # Initialize the specific state for dashboard access
+        if "dashboard_unlocked" not in st.session_state:
+            st.session_state.dashboard_unlocked = False
 
-    # 3. MANAGE ORDERS (Existing)
-    elif menu == "Manage Orders":
-        # ... (Keep your existing Manage Orders code here) ...
-        st.title("📋 Job Order Management")
-        # (Paste your existing Manage Orders logic here)
-
-    # 4. NEW FEATURE: STAFF TIMEKEEPING (DTR)
-    elif menu == "Staff Timekeeping":
-        st.title("⏱️ Staff Timekeeping (DTR)")
-        
-        # Note: We removed 'with tab_dtr:' because this is now a main page, not a tab.
-        st.subheader("Log Work Hours")
-        emp_df = load_csv("employees")
-        
-        if emp_df.empty:
-            st.warning("⚠️ No employees found. Please add employees to 'payroll_employees.csv' manually or via the Admin module.")
-        else:
-            c1, c2 = st.columns([1, 2])
+        # If locked, show the password input
+        if not st.session_state.dashboard_unlocked:
+            st.title("🔒 Admin Access Required")
+            st.info("This section contains sensitive financial data.")
             
-            # --- LEFT COLUMN: NEW ENTRY FORM ---
+            admin_input = st.text_input("Enter Owner Password", type="password", key="dash_pass_input")
+            
+            if st.button("Unlock Dashboard"):
+                if admin_input == DASHBOARD_PASSWORD:
+                    st.session_state.dashboard_unlocked = True
+                    st.rerun()
+                else:
+                    st.error("❌ Incorrect Password")
+        
+        # If unlocked, show the actual dashboard
+        else:
+            # Optional: Button to re-lock the screen
+            if st.button("🔒 Lock Dashboard"):
+                st.session_state.dashboard_unlocked = False
+                st.rerun()
+
+            st.title("📊 Business Performance")
+            sales_df = load_data()
+            
+            if not sales_df.empty:
+                today_val = date.today()
+                today_sales = sales_df[sales_df["Date"] == today_val]["Amount"].sum()
+                unpaid_total = sales_df[sales_df["Payment_Status"] == "Unpaid"]["Amount"].sum()
+                
+                c1, c2, c3 = st.columns(3)
+                c1.metric("Sales Today", f"₱{today_sales:,.2f}")
+                c2.metric("Unpaid Receivables", f"₱{unpaid_total:,.2f}")
+                c3.metric("WIP Jobs", len(sales_df[sales_df["Work_Status"] == "WIP"]))
+                
+                # (You can add your Date Range breakdown code here if needed)
+            else:
+                st.info("No records found yet.")
+
+    # 2. NEW SALE (FIXED)
+    elif menu == "New Sale":
+        st.title("💰 Create New Job Order")
+
+        # --- 0. PERSISTENT SUCCESS MESSAGE LOGIC ---
+        # Check if a message exists from the previous run (before the reset)
+        if "last_success_msg" in st.session_state and st.session_state.last_success_msg:
+            st.success(st.session_state.last_success_msg)
+            # Clear it immediately so it doesn't stay on screen forever
+            del st.session_state.last_success_msg
+
+        # --- 1. SESSION STATE FOR RESETTING ---
+        if "form_key" not in st.session_state:
+            st.session_state.form_key = 0
+
+        # Reset Button (Manual Clear)
+        if st.button("🔄 Reset Form"):
+            st.session_state.form_key += 1
+            st.rerun()
+
+        # --- 2. THE FORM ---
+        with st.form("order_form", clear_on_submit=False):
+            st.subheader("👤 Customer & Service")
+            
+            # Helper for the current key
+            k = st.session_state.form_key
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                cust_name = st.text_input("Customer Name", key=f"cust_name_{k}")
+                contact = st.text_input("Contact Number", key=f"contact_{k}")
+                selected_tier = st.selectbox("Pricing Tier", list(TIERS.keys()), key=f"tier_{k}")
+                garment = st.selectbox("Garment Type", ["Regular", "Semi-Heavy", "Heavy"], key=f"garment_{k}")
+            with col2:
+                loads = st.number_input("Loads", min_value=1, step=1, key=f"loads_{k}")
+                open_amt = st.number_input("Misc / Open Amount (₱)", min_value=0.0, key=f"open_{k}")
+                pay_type = st.radio("Payment", ["Cash", "GCash"], horizontal=True, key=f"ptype_{k}")
+                pay_status = st.radio("Status", ["Unpaid", "Paid"], horizontal=True, key=f"pstat_{k}")
+
+            st.divider()
+            st.subheader("🧴 Add-ons (Supplies)")
+            
+            c1, c2 = st.columns(2)
             with c1:
-                with st.form("dtr_form"):
-                    dtr_date = st.date_input("Date", date.today())
-                    
-                    # Map Name to ID
-                    emp_display = [f"{row['Name']} ({row['Employee_ID']})" for i, row in emp_df.iterrows()]
-                    selected_emp_str = st.selectbox("Select Employee", emp_display)
-                    
-                    # Extract ID and Name
-                    sel_name = selected_emp_str.split(" (")[0]
-                    sel_id = selected_emp_str.split(" (")[1].replace(")", "")
-
-                    t_in = st.time_input("Time In", value=datetime.strptime("08:00", "%H:%M").time())
-                    t_out = st.time_input("Time Out", value=datetime.strptime("17:00", "%H:%M").time())
-                    
-                    is_hol = st.checkbox("Is this a Holiday?")
-                    notes = st.text_input("Notes")
-                    
-                    if st.form_submit_button("Log Time"):
-                        # Calculate Hours
-                        dummy_date = date(2000, 1, 1)
-                        dt_in = datetime.combine(dummy_date, t_in)
-                        dt_out = datetime.combine(dummy_date, t_out)
-                        
-                        total_hours = (dt_out - dt_in).total_seconds() / 3600
-                        
-                        # Auto-deduct 1 hour break if worked more than 5 hours
-                        if total_hours > 5:
-                            total_hours -= 1
-                        
-                        # OT Calculation (After 8 hours)
-                        reg_hours = min(total_hours, 8.0)
-                        ot_hours = max(total_hours - 8.0, 0.0)
-                        
-                        dtr_entry = pd.DataFrame([{
-                            "Date": dtr_date, "Employee_ID": sel_id, "Name": sel_name,
-                            "Time_In": t_in, "Time_Out": t_out,
-                            "Reg_Hours": reg_hours, "OT_Hours": ot_hours,
-                            "Is_Holiday": is_hol, "Notes": notes
-                        }])
-                        save_csv("dtr", pd.concat([load_csv("dtr"), dtr_entry], ignore_index=True))
-                        st.success(f"Logged {total_hours} hrs for {sel_name}")
-                        st.rerun()
-
-            # --- RIGHT COLUMN: EDITABLE LOGS ---
+                st.markdown("##### Detergent")
+                det_brand = st.text_input("Brand", placeholder="e.g. Ariel", key=f"d_brand_{k}")
+                det_price = st.number_input("Amount (₱)", min_value=0.0, step=5.0, key=f"d_price_{k}")
+            
             with c2:
-                st.caption("Recent Logs (Editable - Double click to change)")
-                dtr_df = load_csv("dtr")
-                if not dtr_df.empty:
-                    # Ensure Date is datetime for sorting
-                    dtr_df["Date"] = pd.to_datetime(dtr_df["Date"]).dt.date
-                    dtr_sorted = dtr_df.sort_values("Date", ascending=False)
-                    
-                    # Make the dataframe editable
-                    edited_dtr = st.data_editor(
-                        dtr_sorted,
-                        use_container_width=True,
-                        hide_index=True,
-                        num_rows="dynamic", # Allows adding/deleting rows directly in table
-                        key="dtr_editor"
-                    )
+                st.markdown("##### Fabric Conditioner")
+                fab_brand = st.text_input("Brand", placeholder="e.g. Downy", key=f"f_brand_{k}")
+                fab_price = st.number_input("Amount (₱)", min_value=0.0, step=5.0, key=f"f_price_{k}")
 
-                    # Save changes logic
-                    if st.button("💾 Save Changes to Logs"):
-                        save_csv("dtr", edited_dtr)
-                        st.success("DTR Logs updated successfully!")
+            st.divider()
+            notes = st.text_area("Notes / Remarks", key=f"notes_{k}")
+            work_status = st.select_slider("Work Status", options=["WIP", "Ready", "Claimed"], key=f"ws_{k}")
+
+            # --- Calculation Logic ---
+            base_price = float(TIERS[selected_tier] * loads)
+            supplies_total = float(det_price) + float(fab_price)
+            grand_total = base_price + supplies_total + float(open_amt)
+
+            # --- Display Totals ---
+            st.markdown(f"""
+            <div style="background-color:#f0f2f6; padding:15px; border-radius:10px; margin-bottom:10px;">
+                <h4>🧾 Payment Summary</h4>
+                <p>Base Laundry: ₱{base_price:,.2f}<br>
+                Supplies: ₱{supplies_total:,.2f}<br>
+                Misc: ₱{open_amt:,.2f}</p>
+                <h3 style="color:#007bff;">Total Amount: ₱{grand_total:,.2f}</h3>
+            </div>
+            """, unsafe_allow_html=True)
+
+            # --- Actions ---
+            col_actions1, col_actions2 = st.columns(2)
+            with col_actions1:
+                update_click = st.form_submit_button("🔄 Update Total", type="secondary", use_container_width=True)
+            with col_actions2:
+                confirm_click = st.form_submit_button("✅ Confirm Order", type="primary", use_container_width=True)
+
+            # --- Save Logic ---
+            if confirm_click:
+                if not cust_name:
+                    st.error("⚠️ Customer Name is required.")
+                else:
+                    # Format supplies string
+                    supplies_str = []
+                    if det_price > 0 or det_brand:
+                        supplies_str.append(f"Det: {det_brand} (₱{det_price})")
+                    if fab_price > 0 or fab_brand:
+                        supplies_str.append(f"Fab: {fab_brand} (₱{fab_price})")
+                    
+                    supplies_final = ", ".join(supplies_str) if supplies_str else "None"
+
+                    new_entry = pd.DataFrame([{
+                        "Order_ID": datetime.now().strftime("%y%m%d-%H%M%S"),
+                        "Date": date.today(), 
+                        "Customer": cust_name, 
+                        "Contact": str(contact),
+                        "Tier": selected_tier, 
+                        "Garment_Type": garment, 
+                        "Loads": loads,
+                        "Additionals": supplies_total, 
+                        "Misc_Amount": open_amt, 
+                        "Amount": grand_total,
+                        "Payment_Type": pay_type, 
+                        "Payment_Status": pay_status,
+                        "Work_Status": work_status, 
+                        "Notes": f"{supplies_final} | {notes}"
+                    }])
+                    
+                    # Append and Save
+                    current_df = pd.read_csv(FILES["sales"])
+                    save_data(pd.concat([current_df, new_entry], ignore_index=True))
+                    
+                    # --- SUCCESS HANDLING ---
+                    # Store the message in session state so it survives the rerun
+                    st.session_state.last_success_msg = f"✅ Success! Order for {cust_name} saved. (Total: ₱{grand_total:,.2f})"
+                    
+                    # Increment key to reset form, then rerun to show the empty form + success message
+                    st.session_state.form_key += 1
+                    st.rerun()
+
+    # 3. MANAGE ORDERS
+    elif menu == "Manage Orders":
+        st.title("📋 Job Order Management")
+        sales_df = load_data()
+        
+        if not sales_df.empty:
+            # --- FETCH SECTION ---
+            st.subheader("🔍 Fetch & Actions")
+            order_to_fetch = st.text_input("Enter Order ID (e.g., 231219-1200)")
+            
+            if order_to_fetch:
+                fetched_job = sales_df[sales_df["Order_ID"] == order_to_fetch]
+                if not fetched_job.empty:
+                    st.info(f"Managing Order for: **{fetched_job.iloc[0]['Customer']}**")
+                    
+                    # Update & Delete Layout
+                    tab_update, tab_delete = st.tabs(["Update Status", "⚠️ Delete Order"])
+                    
+                    with tab_update:
+                        with st.form("update_form"):
+                            c1, c2, c3 = st.columns(3)
+                            # Safe index finding
+                            curr_work = fetched_job.iloc[0]["Work_Status"]
+                            curr_pay = fetched_job.iloc[0]["Payment_Status"]
+                            curr_type = fetched_job.iloc[0]["Payment_Type"]
+                            
+                            u_work = c1.selectbox("Work Status", ["WIP", "Ready", "Claimed"], index=["WIP", "Ready", "Claimed"].index(curr_work) if curr_work in ["WIP", "Ready", "Claimed"] else 0)
+                            u_pay = c2.selectbox("Payment Status", ["Paid", "Unpaid"], index=["Paid", "Unpaid"].index(curr_pay) if curr_pay in ["Paid", "Unpaid"] else 0)
+                            u_type = c3.selectbox("Payment Type", ["Cash", "GCash"], index=["Cash", "GCash"].index(curr_type) if curr_type in ["Cash", "GCash"] else 0)
+                            
+                            u_notes = st.text_area("Update Notes", value=fetched_job.iloc[0]["Notes"])
+                            
+                            if st.form_submit_button("Save Changes"):
+                                sales_df.loc[sales_df["Order_ID"] == order_to_fetch, ["Work_Status", "Payment_Status", "Payment_Type", "Notes"]] = [u_work, u_pay, u_type, str(u_notes)]
+                                save_data(sales_df)
+                                st.success("Updated!")
+                                st.rerun()
+
+                    with tab_delete:
+                        st.warning("Deletions cannot be undone. This will remove the record from your sales history.")
+                        confirm_check = st.checkbox("I confirm that I want to delete this order.")
+                        if st.button("Delete Permanently", disabled=not confirm_check):
+                            updated_df = sales_df[sales_df["Order_ID"] != order_to_fetch]
+                            save_data(updated_df)
+                            st.error(f"Order {order_to_fetch} deleted.")
+                            st.rerun()
+                else:
+                    st.error("Order ID not found.")
+
+            st.divider()
+            st.subheader("📝 Bulk Status Editor")
+            edited_df = st.data_editor(
+                sales_df,
+                column_config={
+                    "Work_Status": st.column_config.SelectboxColumn("Work Status", options=["WIP", "Ready", "Claimed"]),
+                    "Payment_Status": st.column_config.SelectboxColumn("Payment Status", options=["Paid", "Unpaid"]),
+                    "Payment_Type": st.column_config.SelectboxColumn("Payment Type", options=["Cash", "GCash"]),
+                    "Notes": st.column_config.TextColumn("Notes", width="large")
+                },
+                disabled=["Order_ID", "Date", "Customer", "Amount", "Tier", "Loads", "Add_on_Fixed", "Open_Amount", "Garment_Type", "Contact"],
+                use_container_width=True, hide_index=True
+            )
+            if st.button("Save All Bulk Changes"):
+                save_data(edited_df)
+                st.success("Bulk updates saved!")
+                st.rerun()
