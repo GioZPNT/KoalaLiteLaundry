@@ -363,7 +363,7 @@ elif app_mode == "🔐 Admin & Payroll":
                             }])
                             save_csv("employees", pd.concat([emp_df, new_data], ignore_index=True))
                             st.success(f"✅ Added {name}")
-                            st.experimental_rerun()
+                            st.rerun()
 
             st.divider()
             st.subheader("📝 Employee Registry (Editable)")
@@ -392,7 +392,7 @@ elif app_mode == "🔐 Admin & Payroll":
                         to_save["Start_Date"] = pd.to_datetime(to_save["Start_Date"]).dt.date
                     save_csv("employees", to_save)
                     st.success("✅ Employee Registry updated!")
-                    st.experimental_rerun()
+                    st.rerun()
 
         # --- ADMIN: DTR ---
         with tab_dtr:
