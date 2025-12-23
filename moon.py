@@ -394,11 +394,11 @@ elif app_mode == "🔐 Admin & Payroll":
                                 dt_in = datetime.combine(date(2000,1,1), t_in)
                                 dt_out = datetime.combine(date(2000,1,1), t_out)
                                 hrs = (dt_out - dt_in).total_seconds() / 3600
-                                if hrs > 5: hrs -= 1
+                                if hrs > 5: hrs -= 0.5
                                 reg = min(hrs, 8.0)
                                 ot = max(hrs - 8.0, 0.0)
                                 
-                                new_log = pd.DataFrame([{
+                                new_log = pd.data_editor([{
                                     "Date": dtr_date, "Employee_ID": sel_id, "Name": sel_name,
                                     "Time_In": t_in, "Time_Out": t_out, "Reg_Hours": reg,
                                     "OT_Hours": ot, "Is_Holiday": is_hol, "Notes": notes
