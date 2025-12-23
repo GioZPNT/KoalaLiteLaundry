@@ -279,8 +279,8 @@ if app_mode == "🛒 Sales & Orders":
                             total_hours -= .05
                         
                         # OT Calculation (After 8 hours)
-                        reg_hours = min(total_hours, 8.0)
-                        ot_hours = max(total_hours - 8.0, 0.0)
+                        reg_hours = min(total_hours, 10.0)
+                        ot_hours = max(total_hours - 10.0, 0.0)
                         
                         dtr_entry = pd.DataFrame([{
                             "Date": dtr_date, "Employee_ID": sel_id, "Name": sel_name,
@@ -427,8 +427,8 @@ elif app_mode == "🔐 Admin & Payroll":
                                 dt_out = datetime.combine(date(2000,1,1), t_out)
                                 hrs = (dt_out - dt_in).total_seconds() / 3600
                                 if hrs > 5: hrs -= 0.5
-                                reg = min(hrs, 8.0)
-                                ot = max(hrs - 8.0, 0.0)
+                                reg = min(hrs, 10.0)
+                                ot = max(hrs - 10.0, 0.0)
                                 
                                 new_log = pd.DataFrame([{
                                     "Date": dtr_date, "Employee_ID": sel_id, "Name": sel_name,
