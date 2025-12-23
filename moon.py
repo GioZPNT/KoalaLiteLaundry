@@ -276,7 +276,7 @@ if app_mode == "🛒 Sales & Orders":
                         
                         # Auto-deduct 1 hour break if worked more than 5 hours
                         if total_hours > 5:
-                            total_hours -= 1
+                            total_hours -= .05
                         
                         # OT Calculation (After 8 hours)
                         reg_hours = min(total_hours, 8.0)
@@ -426,7 +426,7 @@ elif app_mode == "🔐 Admin & Payroll":
                                 dt_in = datetime.combine(date(2000,1,1), t_in)
                                 dt_out = datetime.combine(date(2000,1,1), t_out)
                                 hrs = (dt_out - dt_in).total_seconds() / 3600
-                                if hrs > 5: hrs -= 1
+                                if hrs > 5: hrs -= 0.5
                                 reg = min(hrs, 8.0)
                                 ot = max(hrs - 8.0, 0.0)
                                 
