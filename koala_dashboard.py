@@ -4,7 +4,8 @@ import plotly.express as px
 from pathlib import Path
 from typing import Optional
 
-st.set_page_config(page_title="Koala Dashboard", layout="wide")
+# NOTE: page config is applied by the host app (e.g., `moon.py`) when imported.
+# If run directly, we'll set the page config at the module entry point.
 
 DEFAULT_CSV = Path.home() / "Downloads" / "Koala Guadalupe (Responses) - Form Responses 1.csv"
 
@@ -46,7 +47,10 @@ def format_currency(x: float) -> str:
     return f"${x:,.2f}"
 
 
-def main():
+def render_dashboard():
+    """Render the Koala operations dashboard in the current Streamlit app context.
+    This function is safe to import and call from another Streamlit app (e.g., `moon.py`).
+    """
     st.title("Koala Laundry — Operations Dashboard")
 
     st.sidebar.header("Data source")
@@ -162,4 +166,6 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    # When run directly, ensure a page config is set for this app
+    st.set_page_config(page_title="Koala Dashboard", layout="wide")
+    render_dashboard()

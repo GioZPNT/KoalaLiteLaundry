@@ -80,12 +80,25 @@ def calculate_tenure(start_date_str):
 
 # --- MAIN NAVIGATION ---
 st.sidebar.title("🐨 Koala System")
-app_mode = st.sidebar.radio("Select Department:", ["🛒 Sales & Orders", "🔐 Admin & Payroll"])
+app_mode = st.sidebar.radio("Select Department:", ["🛒 Sales Monitoring", "🔐 Admin & Payroll"])
+
+# Embedded dashboard mode: render the Koala operations dashboard inside the Sales Monitoring page
+if app_mode == "🛒 Sales Monitoring":
+    st.title("📊 Sales Monitoring")
+    st.info("Embedded Sales Dashboard")
+    try:
+        import koala_dashboard
+        koala_dashboard.render_dashboard()
+    except Exception as e:
+        st.error(f"Failed to load embedded dashboard: {e}")
+        st.write("You can also run the standalone dashboard: `streamlit run koala_dashboard.py`")
+    # Prevent further page logic from executing for this mode
+    st.stop()
 
 # =========================================================
 # SECTION 1: SALES & ORDERS (Public/Staff Access)
 # =========================================================
-if app_mode == "🛒 Sales & Orders":
+if False:  # Sales & Orders removed; use Sales Monitoring
     # 1. UPDATE: Added "Staff Timekeeping" to the dropdown
     menu = st.sidebar.selectbox("Sales Menu:", ["Dashboard", "New Sale", "Manage Orders", "Staff Timekeeping"])
     
