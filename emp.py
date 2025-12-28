@@ -108,7 +108,7 @@ with tab_emp:
         st.dataframe(
             display_df, 
             column_order=["Employee_ID", "Name", "Position", "Status", "Tenure", "Daily_Rate", "Hourly_Rate"],
-            use_container_width=True, hide_index=True
+            width='stretch', hide_index=True
         )
     else:
         st.info("No employees found.")
@@ -182,7 +182,7 @@ with tab_dtr:
                 # Make the dataframe editable
                 edited_dtr = st.data_editor(
                     dtr_sorted,
-                    use_container_width=True,
+                    width='stretch',
                     hide_index=True,
                     num_rows="dynamic", # Allows adding/deleting rows directly in table
                     key="dtr_editor"
@@ -250,7 +250,7 @@ with tab_pay:
             ).reset_index()
             
             st.success("Calculation Complete!")
-            st.dataframe(payroll_summary, use_container_width=True)
+            st.dataframe(payroll_summary, width='stretch')
             
             # --- GOOGLE SHEETS EXPORT OPTION ---
             st.divider()
@@ -296,4 +296,4 @@ with tab_leave:
         leaves_df = load_csv("leaves")
         if not leaves_df.empty:
             leaves_df["Leave_Date"] = pd.to_datetime(leaves_df["Leave_Date"])
-            st.dataframe(leaves_df.sort_values("Leave_Date"), use_container_width=True, hide_index=True)
+            st.dataframe(leaves_df.sort_values("Leave_Date"), width='stretch', hide_index=True)

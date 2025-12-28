@@ -86,7 +86,7 @@ def render_dashboard():
             st.stop()
 
     st.subheader("Dataset preview")
-    st.dataframe(df.head(100), use_container_width=True)
+    st.dataframe(df.head(100), width='stretch')
 
     # Attempt to auto-detect columns
     detected = {}
@@ -137,21 +137,21 @@ def render_dashboard():
 
     # Paid vs Unpaid pie chart
     fig_pie = px.pie(values=[paid_total, unpaid_total], names=["Paid", "Unpaid"], title="Paid vs Unpaid", hole=0.4)
-    st.plotly_chart(fig_pie, use_container_width=True)
+    st.plotly_chart(fig_pie, width='stretch')
 
     # Time series of payments by Date
     if "Date" in df.columns:
         payments = df.groupby("Date")[[mapped["paid"], mapped["unpaid"]]].sum().reset_index().sort_values("Date")
         payments = payments.rename(columns={mapped["paid"]: "Total Paid", mapped["unpaid"]: "Total Unpaid"})
         fig = px.line(payments, x="Date", y=["Total Paid", "Total Unpaid"], labels={"value": "Amount", "variable": "Type"}, title="Payments over time")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
     # Loads by staff
     name_col = find_column(df, ["Name", "Employee", "Staff", "Worker"])
     if name_col and mapped["loads"] in df.columns:
         loads_by_person = df.groupby(name_col)[mapped["loads"]].sum().reset_index().rename(columns={mapped["loads"]: "Total Loads"}).sort_values("Total Loads", ascending=False)
         fig2 = px.bar(loads_by_person, x=name_col, y="Total Loads", title="Total loads by staff", text="Total Loads")
-        st.plotly_chart(fig2, use_container_width=True)
+        st.plotly_chart(fig2, width='stretch')
 
     # Allow download of summary
     summary = pd.DataFrame({

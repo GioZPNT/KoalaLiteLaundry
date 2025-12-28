@@ -184,9 +184,9 @@ if check_password():
             # --- Actions ---
             col_actions1, col_actions2 = st.columns(2)
             with col_actions1:
-                update_click = st.form_submit_button("🔄 Update Total", type="secondary", use_container_width=True)
+                update_click = st.form_submit_button("🔄 Update Total", type="secondary", width='stretch')
             with col_actions2:
-                confirm_click = st.form_submit_button("✅ Confirm Order", type="primary", use_container_width=True)
+                confirm_click = st.form_submit_button("✅ Confirm Order", type="primary", width='stretch')
 
             # --- Save Logic ---
             if confirm_click:
@@ -291,7 +291,7 @@ if check_password():
                     "Notes": st.column_config.TextColumn("Notes", width="large")
                 },
                 disabled=["Order_ID", "Date", "Customer", "Amount", "Tier", "Loads", "Add_on_Fixed", "Open_Amount", "Garment_Type", "Contact"],
-                use_container_width=True, hide_index=True
+                width='stretch', hide_index=True
             )
             if st.button("Save All Bulk Changes"):
                 save_data(edited_df)
