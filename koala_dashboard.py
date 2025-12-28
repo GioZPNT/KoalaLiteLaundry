@@ -3,6 +3,7 @@ import pandas as pd
 import plotly.express as px
 from pathlib import Path
 from typing import Optional
+from datetime import datetime
 
 # NOTE: page config is applied by the host app (e.g., `moon.py`) when imported.
 # If run directly, we'll set the page config at the module entry point.
@@ -160,6 +161,100 @@ def render_dashboard():
     })
 
     st.download_button("Download summary CSV", summary.to_csv(index=False).encode("utf-8"), file_name="koala_summary.csv", mime="text/csv")
+
+    # --- PDF EXPORT: Create a PDF containing the summary and charts (exclude source data) ---
+    import io
+    from reportlab.pdfgen import canvas
+    from reportlab.lib.pagesizes import letter
+    from reportlab.lib.utils import ImageReader
+    from reportlab.lib.units import inch
+
+    def fig_to_png_bytes(fig):
+        """Convert a plotly figure to PNG bytes using kaleido."""
+        try:
+            return fig.to_image(format="png", engine="kaleido")
+        except Exception as e:
+            # Bubble up a clear error for debugging; in UI we'll show an error message
+            raise RuntimeError(f"Failed converting figure to image: {e}")
+
+    def generate_report_pdf(summary_df, figs: dict) -> bytes:
+        """Build a PDF in memory with the title, the summary table, and the given figures.
+        `figs` is a dict of (label, plotly_figure) pairs. Returns raw PDF bytes.
+        """
+        buf = io.BytesIO()
+        c = canvas.Canvas(buf, pagesize=letter)
+        width, height = letter
+
+        # Title
+        c.setFont("Helvetica-Bold", 16)
+        c.drawCentredString(width / 2.0, height - inch * 0.75, "Koala Laundry — Operations Report")
+        c.setFont("Helvetica", 10)
+        c.drawCentredString(width / 2.0, height - inch * 0.95, datetime.now().strftime("Generated: %Y-%m-%d %H:%M:%S"))
+
+        y = height - inch * 1.4
+
+        # Summary table (text-based)
+        c.setFont("Helvetica-Bold", 12)
+        c.drawString(inch * 0.75, y, "Summary")
+        y -= 0.2 * inch
+        c.setFont("Helvetica", 10)
+        for _, row in summary_df.iterrows():
+            metric = str(row["metric"])[:30]
+            value = row["value"]
+            c.drawString(inch * 0.9, y, f"{metric}: {value}")
+            y -= 0.18 * inch
+        y -= 0.12 * inch
+
+        # Add each figure on its own region; start new page if needed
+        for label, fig in figs.items():
+            if fig is None:
+                continue
+            try:
+                img_bytes = fig_to_png_bytes(fig)
+                img = ImageReader(io.BytesIO(img_bytes))
+                # If not enough space left, start a new page
+                if y < inch * 2.0:
+                    c.showPage()
+                    y = height - inch * 1.0
+                c.setFont("Helvetica-Bold", 11)
+                c.drawString(inch * 0.75, y, label)
+                y -= 0.15 * inch
+                # Draw image scaled to page width with margins
+                max_width = width - inch * 1.5
+                iw, ih = img.getSize()
+                scale = min(max_width / iw, (y - inch * 0.5) / ih, 1.0)
+                disp_w = iw * scale
+                disp_h = ih * scale
+                c.drawImage(img, inch * 0.75, y - disp_h, width=disp_w, height=disp_h)
+                y -= disp_h + 0.25 * inch
+            except Exception as e:
+                # Put a small note in the PDF about the failure to include the chart
+                c.setFont("Helvetica-Oblique", 9)
+                c.drawString(inch * 0.9, y, f"Could not render chart '{label}': {e}")
+                y -= 0.18 * inch
+
+        c.save()
+        buf.seek(0)
+        return buf.read()
+
+    # Collect available figures
+    figs_to_export = {"Paid vs Unpaid": fig_pie}
+    if 'fig' in locals():
+        figs_to_export["Payments over time"] = locals().get('fig')
+    if 'fig2' in locals():
+        figs_to_export["Total loads by staff"] = locals().get('fig2')
+
+    try:
+        pdf_bytes = generate_report_pdf(summary, figs_to_export)
+        st.download_button(
+            "Download report (PDF)",
+            pdf_bytes,
+            file_name=f"koala_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
+            mime="application/pdf"
+        )
+    except Exception as e:
+        # Show a helpful UI message without exposing a stack trace
+        st.error(f"Unable to prepare PDF: {e}. Ensure 'kaleido' and 'reportlab' packages are installed.")
 
     st.sidebar.markdown("---")
     st.sidebar.info("Run: `streamlit run koala_dashboard.py`")
