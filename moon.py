@@ -89,6 +89,26 @@ if app_mode == "🛒 Sales Monitoring":
     try:
         import koala_dashboard
         koala_dashboard.render_dashboard()
+
+        # Host-level export: allow exporting the dashboard to PDF from the Koala host app
+        with st.expander("📥 Export dashboard to PDF (host app)"):
+            st.write("Upload the same CSV you used in the dashboard or provide a path to generate a PDF copy of the dashboard.")
+            exp_up = st.file_uploader("Upload CSV to export (optional)", type=["csv"], key="moon_export_csv")
+            exp_path = st.text_input("Or enter CSV path", value="", key="moon_export_path")
+            if st.button("Generate PDF", key="moon_generate_pdf"):
+                if exp_up is not None:
+                    data_src = exp_up
+                elif exp_path:
+                    data_src = exp_path
+                else:
+                    st.error("Please upload a CSV or provide a file path.")
+                    st.stop()
+                try:
+                    pdf_bytes = koala_dashboard.generate_dashboard_pdf_from_csv(data_src)
+                    st.download_button("Download dashboard (PDF)", pdf_bytes, file_name=f"koala_dashboard_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf", mime="application/pdf")
+                except Exception as e:
+                    st.error(f"Unable to create PDF: {e}")
+
     except Exception as e:
         st.error(f"Failed to load embedded dashboard: {e}")
         st.write("You can also run the standalone dashboard: `streamlit run koala_dashboard.py`")

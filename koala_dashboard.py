@@ -162,7 +162,7 @@ def render_dashboard():
 
     st.download_button("Download summary CSV", summary.to_csv(index=False).encode("utf-8"), file_name="koala_summary.csv", mime="text/csv")
 
-    # --- PDF EXPORT: Create a PDF containing the summary and charts (exclude source data) ---
+    # --- PDF EXPORT: Provide reusable helpers for generating a dashboard PDF ---
     import io
     from reportlab.pdfgen import canvas
     from reportlab.lib.pagesizes import letter
@@ -174,10 +174,9 @@ def render_dashboard():
         try:
             return fig.to_image(format="png", engine="kaleido")
         except Exception as e:
-            # Bubble up a clear error for debugging; in UI we'll show an error message
             raise RuntimeError(f"Failed converting figure to image: {e}")
 
-    def generate_report_pdf(summary_df, figs: dict) -> bytes:
+    def generate_report_pdf_bytes(summary_df, figs: dict) -> bytes:
         """Build a PDF in memory with the title, the summary table, and the given figures.
         `figs` is a dict of (label, plotly_figure) pairs. Returns raw PDF bytes.
         """
@@ -237,7 +236,70 @@ def render_dashboard():
         buf.seek(0)
         return buf.read()
 
-    # Collect available figures
+    def build_dashboard_elements_from_df(df, mapping=None):
+        """Given a dataframe and optional mapping, return (summary_df, figs_dict). Raises ValueError if mapping missing."""
+        # Determine mapping if not provided
+        mapped = {}
+        if mapping is None:
+            for key, aliases in REQUIRED_ALIASES.items():
+                col = find_column(df, aliases)
+                mapped[key] = col
+        else:
+            mapped = mapping
+
+        missing = [k for k, v in mapped.items() if v is None or v not in df.columns]
+        if missing:
+            raise ValueError(f"Missing required columns: {', '.join(missing)}")
+
+        # Coerce types
+        df[mapped["paid"]] = coerce_numeric_currency(df[mapped["paid"]])
+        df[mapped["unpaid"]] = coerce_numeric_currency(df[mapped["unpaid"]])
+        df[mapped["loads"]] = coerce_int(df[mapped["loads"]])
+
+        if "Date" in df.columns:
+            try:
+                df["Date"] = pd.to_datetime(df["Date"])
+            except Exception:
+                pass
+
+        paid_total = df[mapped["paid"]].sum()
+        unpaid_total = df[mapped["unpaid"]].sum()
+        loads_total = int(df[mapped["loads"]].sum())
+
+        # Build figures
+        fig_pie = px.pie(values=[paid_total, unpaid_total], names=["Paid", "Unpaid"], title="Paid vs Unpaid", hole=0.4)
+        fig_ts = None
+        fig_loads = None
+        if "Date" in df.columns:
+            payments = df.groupby("Date")[[mapped["paid"], mapped["unpaid"]]].sum().reset_index().sort_values("Date")
+            payments = payments.rename(columns={mapped["paid"]: "Total Paid", mapped["unpaid"]: "Total Unpaid"})
+            fig_ts = px.line(payments, x="Date", y=["Total Paid", "Total Unpaid"], labels={"value": "Amount", "variable": "Type"}, title="Payments over time")
+        name_col = find_column(df, ["Name", "Employee", "Staff", "Worker"])
+        if name_col and mapped["loads"] in df.columns:
+            loads_by_person = df.groupby(name_col)[mapped["loads"]].sum().reset_index().rename(columns={mapped["loads"]: "Total Loads"}).sort_values("Total Loads", ascending=False)
+            fig_loads = px.bar(loads_by_person, x=name_col, y="Total Loads", title="Total loads by staff", text="Total Loads")
+
+        summary = pd.DataFrame({
+            "metric": ["Total Paid", "Total Unpaid", "Total Loads"],
+            "value": [paid_total, unpaid_total, loads_total]
+        })
+
+        figs = {"Paid vs Unpaid": fig_pie}
+        if fig_ts is not None:
+            figs["Payments over time"] = fig_ts
+        if fig_loads is not None:
+            figs["Total loads by staff"] = fig_loads
+
+        return summary, figs
+
+    def generate_dashboard_pdf_from_csv(path_or_buffer, mapping=None) -> bytes:
+        """Read CSV from path or buffer, build dashboard elements, and return PDF bytes."""
+        df = read_csv(path_or_buffer)
+        summary, figs = build_dashboard_elements_from_df(df, mapping=mapping)
+        return generate_report_pdf_bytes(summary, figs)
+
+    # Use the helpers to create a PDF and provide a download button in the UI
+    # Assemble the available figures into a dict for export
     figs_to_export = {"Paid vs Unpaid": fig_pie}
     if 'fig' in locals():
         figs_to_export["Payments over time"] = locals().get('fig')
@@ -245,7 +307,7 @@ def render_dashboard():
         figs_to_export["Total loads by staff"] = locals().get('fig2')
 
     try:
-        pdf_bytes = generate_report_pdf(summary, figs_to_export)
+        pdf_bytes = generate_report_pdf_bytes(summary, figs_to_export)
         st.download_button(
             "Download report (PDF)",
             pdf_bytes,
@@ -253,7 +315,6 @@ def render_dashboard():
             mime="application/pdf"
         )
     except Exception as e:
-        # Show a helpful UI message without exposing a stack trace
         st.error(f"Unable to prepare PDF: {e}. Ensure 'kaleido' and 'reportlab' packages are installed.")
 
     st.sidebar.markdown("---")
