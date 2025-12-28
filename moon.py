@@ -389,7 +389,7 @@ elif app_mode == "🔐 Admin & Payroll":
 
                 edited_emp_df = st.data_editor(
                     emp_df,
-                    use_container_width=True,
+                    width='stretch',
                     hide_index=True,
                     num_rows="dynamic",
                     disabled=["Employee_ID", "Tenure"],
@@ -449,18 +449,18 @@ elif app_mode == "🔐 Admin & Payroll":
                                     "OT_Hours": ot, "Is_Holiday": is_hol, "Notes": notes
                                 }])
                                 # Let user edit the new entry before saving
-                                edited_log = st.data_editor(new_log, use_container_width=True, hide_index=True)
+                                edited_log = st.data_editor(new_log, width='stretch', hide_index=True)
                                 # Use the edited result as the new_log to be saved
                                 new_log = edited_log
                                 save_csv("dtr", pd.concat([load_csv("dtr"), new_log], ignore_index=True))
                                 st.success("Logged!")
                                 st.rerun()
-                
+
                 with c2:
                     dtr_df = load_csv("dtr")
                     if not dtr_df.empty:
                         dtr_df["Date"] = pd.to_datetime(dtr_df["Date"]).dt.date
-                        edited_dtr = st.data_editor(dtr_df.sort_values("Date", ascending=False), num_rows="dynamic", use_container_width=True, hide_index=True)
+                        edited_dtr = st.data_editor(dtr_df.sort_values("Date", ascending=False), num_rows="dynamic", width='stretch', hide_index=True)
                         if st.button("💾 Save Logs"):
                             save_csv("dtr", edited_dtr)
                             st.success("Saved!")
