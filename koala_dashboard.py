@@ -107,7 +107,7 @@ def render_dashboard():
         mapped[key] = st.sidebar.selectbox(f"Column for {label}", options=[None] + col_options, index=(col_options.index(default) + 1 if default in col_options else 0))
 
     # Validate mapping
-    missing = [k for k, v in mapped.items() if not v]
+    missing = [k for k, v in mapped.items() if v is None or v not in df.columns]
     if missing:
         st.error(f"Missing mappings for: {', '.join(missing)}. Please map these columns in the sidebar.")
         st.stop()
@@ -263,4 +263,5 @@ def render_dashboard():
 if __name__ == "__main__":
     # When run directly, ensure a page config is set for this app
     st.set_page_config(page_title="Koala Dashboard", layout="wide")
-    render_dashboard()
+    render_dashboard() 
+
