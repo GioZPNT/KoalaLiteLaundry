@@ -79,8 +79,9 @@ def calculate_tenure(start_date_str):
         return "N/A"
 
 # --- MAIN NAVIGATION ---
-st.sidebar.title("🐨 Koala System")
-app_mode = st.sidebar.radio("Select Department:", ["🛒 Sales Monitoring", "🔐 Admin & Payroll"])
+with st.sidebar.expander("☰ Menu", expanded=True):
+    st.markdown("### 🐨 Koala System")
+    app_mode = st.radio("Select Department:", ["🛒 Sales Monitoring", "🔐 Admin & Payroll"])
 
 # Embedded dashboard mode: render the Koala operations dashboard inside the Sales Monitoring page
 if app_mode == "🛒 Sales Monitoring":
@@ -90,24 +91,9 @@ if app_mode == "🛒 Sales Monitoring":
         import koala_dashboard
         koala_dashboard.render_dashboard()
 
-        # Host-level export: allow exporting the dashboard to PDF from the Koala host app
-        with st.expander("📥 Export dashboard to PDF (host app)"):
-            st.write("Upload the same CSV you used in the dashboard or provide a path to generate a PDF copy of the dashboard.")
-            exp_up = st.file_uploader("Upload CSV to export (optional)", type=["csv"], key="moon_export_csv")
-            exp_path = st.text_input("Or enter CSV path", value="", key="moon_export_path")
-            if st.button("Generate PDF", key="moon_generate_pdf"):
-                if exp_up is not None:
-                    data_src = exp_up
-                elif exp_path:
-                    data_src = exp_path
-                else:
-                    st.error("Please upload a CSV or provide a file path.")
-                    st.stop()
-                try:
-                    pdf_bytes = koala_dashboard.generate_dashboard_pdf_from_csv(data_src)
-                    st.download_button("Download dashboard (PDF)", pdf_bytes, file_name=f"koala_dashboard_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf", mime="application/pdf")
-                except Exception as e:
-                    st.error(f"Unable to create PDF: {e}")
+        # Host-level export: show note (PDF export disabled in host mode)
+        with st.expander("📥 Export options (host app)"):
+            st.info("PDF export is disabled in the host app. To export the dashboard to PDF, run the standalone dashboard: `streamlit run koala_dashboard.py`")
 
     except Exception as e:
         st.error(f"Failed to load embedded dashboard: {e}")
