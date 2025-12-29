@@ -79,8 +79,9 @@ def calculate_tenure(start_date_str):
         return "N/A"
 
 # --- MAIN NAVIGATION ---
-st.sidebar.title("🐨 Koala System")
-app_mode = st.sidebar.radio("Select Department:", ["🛒 Sales Monitoring", "🔐 Admin & Payroll"])
+with st.sidebar.expander("☰ Menu", expanded=True):
+    st.markdown("### 🐨 Koala System")
+    app_mode = st.radio("Select Department:", ["🛒 Sales Monitoring", "🔐 Admin & Payroll"])
 
 # Embedded dashboard mode: render the Koala operations dashboard inside the Sales Monitoring page
 if app_mode == "🛒 Sales Monitoring":
@@ -89,6 +90,11 @@ if app_mode == "🛒 Sales Monitoring":
     try:
         import koala_dashboard
         koala_dashboard.render_dashboard()
+
+        # Host-level export: show note (PDF export disabled in host mode)
+        with st.expander("📥 Export options (host app)"):
+            st.info("PDF export is disabled in the host app. To export the dashboard to PDF, run the standalone dashboard: `streamlit run koala_dashboard.py`")
+
     except Exception as e:
         st.error(f"Failed to load embedded dashboard: {e}")
         st.write("You can also run the standalone dashboard: `streamlit run koala_dashboard.py`")
