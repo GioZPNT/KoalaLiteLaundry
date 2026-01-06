@@ -14,7 +14,9 @@ DEFAULT_CSV = Path.home() / "Downloads" / "Koala Guadalupe (Responses) - Form Re
 REQUIRED_ALIASES = {
     "paid": ["Total Paid", "Paid", "Amount Paid", "Paid Amount", "total_paid"],
     "unpaid": ["Total Unpaid", "Unpaid", "Amount Unpaid", "Unpaid Amount", "total_unpaid"],
-    "loads": ["Total loads completed", "Total Loads", "Loads", "Total_Loads", "total_loads"]}
+    "loads": ["Total loads completed", "Total Loads", "Loads", "Total_Loads", "total_loads"],
+    "time_in": ["Time In", "Time_In", "time_in", "TimeIn"],
+    "time_out": ["Time Out", "Time_Out", "time_out", "TimeOut"]}
 
 
 @st.cache_data
@@ -87,7 +89,7 @@ def render_dashboard():
             st.stop()
 
     st.subheader("Dataset preview")
-    st.dataframe(df.head(100), width='stretch')
+    df = st.data_editor(df, width='stretch')
 
     # Attempt to auto-detect columns
     detected = {}
@@ -117,35 +119,44 @@ def render_dashboard():
     df[mapped["unpaid"]] = coerce_numeric_currency(df[mapped["unpaid"]])
     df[mapped["loads"]] = coerce_int(df[mapped["loads"]])
 
+    # Coerce time columns to datetime
+    df[mapped["time_in"]] = pd.to_datetime(df[mapped["time_in"]], errors='coerce')
+    df[mapped["time_out"]] = pd.to_datetime(df[mapped["time_out"]], errors='coerce')
+
+    # Compute duration in hours
+    df['duration_hours'] = (df[mapped["time_out"]] - df[mapped["time_in"]]).dt.total_seconds() / 3600
+
     # Optional: parse Date if present
     if "Date" in df.columns:
         try:
             df["Date"] = pd.to_datetime(df["Date"])
+            df['week'] = df['Date'].dt.isocalendar().week
+            df['year'] = df['Date'].dt.year
         except Exception:
             pass
+
+    # Compute total hours and payroll
+    name_col = find_column(df, ["Name", "Employee", "Staff", "Worker"])
+    if name_col and 'duration_hours' in df.columns:
+        total_hours = df['duration_hours'].sum()
+        rate_per_hour = 62.5
+        total_payroll = total_hours * rate_per_hour
+    else:
+        total_hours = 0.0
+        total_payroll = 0.0
 
     # KPIs
     paid_total = df[mapped["paid"]].sum()
     unpaid_total = df[mapped["unpaid"]].sum()
     loads_total = int(df[mapped["loads"]].sum())
 
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3, col4 = st.columns(4)
     col1.metric("Total Paid", format_currency(paid_total))
     col2.metric("Total Unpaid", format_currency(unpaid_total))
     col3.metric("Total Loads", f"{loads_total:,}")
+    col4.metric("Total Payroll Amount", f"P{total_payroll:,.2f}")
 
     st.markdown("---")
-
-    # Paid vs Unpaid pie chart
-    fig_pie = px.pie(values=[paid_total, unpaid_total], names=["Paid", "Unpaid"], title="Paid vs Unpaid", hole=0.4)
-    st.plotly_chart(fig_pie, width='stretch')
-
-    # Time series of payments by Date
-    if "Date" in df.columns:
-        payments = df.groupby("Date")[[mapped["paid"], mapped["unpaid"]]].sum().reset_index().sort_values("Date")
-        payments = payments.rename(columns={mapped["paid"]: "Total Paid", mapped["unpaid"]: "Total Unpaid"})
-        fig = px.line(payments, x="Date", y=["Total Paid", "Total Unpaid"], labels={"value": "Amount", "variable": "Type"}, title="Payments over time")
-        st.plotly_chart(fig, width='stretch')
 
     # Loads by staff
     name_col = find_column(df, ["Name", "Employee", "Staff", "Worker"])
@@ -154,10 +165,46 @@ def render_dashboard():
         fig2 = px.bar(loads_by_person, x=name_col, y="Total Loads", title="Total loads by staff", text="Total Loads")
         st.plotly_chart(fig2, width='stretch')
 
+    # Hours worked by employee - Top 2 with weekly breakdown
+    if name_col and 'duration_hours' in df.columns:
+        # Compute total hours per employee to get top 2
+        hours_by_employee = df.groupby(name_col)['duration_hours'].sum().reset_index().rename(columns={'duration_hours': 'Total Hours'}).sort_values("Total Hours", ascending=False)
+        top_employees = hours_by_employee[name_col].head(2).tolist()
+        
+        # For each top employee, show weekly earnings for last 3 weeks including this week
+        rate_per_hour = 62.5
+        for i, emp in enumerate(top_employees, 1):
+            emp_data = df[df[name_col] == emp]
+            if 'week' in df.columns:
+                weekly_hours = emp_data.groupby('week')['duration_hours'].sum().reset_index().rename(columns={'duration_hours': 'Total Hours'}).sort_values('week', ascending=False).head(3).sort_values('week')
+                weekly_hours['Total Earnings'] = weekly_hours['Total Hours'] * rate_per_hour
+                fig = px.bar(weekly_hours, x='week', y='Total Earnings', title=f"Weekly Earnings for {emp} (Last 3 Weeks)", text="Total Earnings")
+                fig.update_traces(texttemplate='P%{text:.2f}', textposition='outside')
+                st.plotly_chart(fig, width='stretch')
+            else:
+                st.warning("Week column not found in data. Cannot display weekly charts.")
+                break
+
+    # Earnings from hours
+    if name_col and 'duration_hours' in df.columns:
+        hours_by_employee = df.groupby(name_col)['duration_hours'].sum().reset_index().rename(columns={'duration_hours': 'Total Hours'}).sort_values("Total Hours", ascending=False)
+        rate_per_hour = 62.5
+        earnings_by_employee = hours_by_employee.copy()
+        earnings_by_employee['Total Payroll Amount'] = earnings_by_employee['Total Hours'] * rate_per_hour
+        fig4 = px.bar(earnings_by_employee, x=name_col, y="Total Payroll Amount", title="Total payroll amount from hours worked by employee")
+        fig4.update_traces(texttemplate='P%{y:.2f}', textposition='outside')
+        st.plotly_chart(fig4, width='stretch')
+
+        total_hours = hours_by_employee['Total Hours'].sum()
+        total_payroll = earnings_by_employee['Total Payroll Amount'].sum()
+    else:
+        total_hours = 0.0
+        total_payroll = 0.0
+
     # Allow download of summary
     summary = pd.DataFrame({
-        "metric": ["Total Paid", "Total Unpaid", "Total Loads"],
-        "value": [paid_total, unpaid_total, loads_total]
+        "metric": ["Total Paid", "Total Unpaid", "Total Loads", "Total Hours Worked", "Total Payroll Amount"],
+        "value": [paid_total, unpaid_total, loads_total, total_hours, total_payroll]
     })
 
     st.download_button("Download summary CSV", summary.to_csv(index=False).encode("utf-8"), file_name="koala_summary.csv", mime="text/csv")
